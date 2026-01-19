@@ -41,33 +41,49 @@ new class extends Component {
 
     public function toggleCategory($id)
     {
-        $this->categories = collect($this->categories)->contains($id) ? collect($this->categories)->reject(fn($v) => $v == $id)->values()->all() : collect($this->categories)->push($id)->all();
-
-        $this->resetPage();
+        $id = (string) $id;
+        if (in_array($id, $this->categories)) {
+            $this->categories = array_values(array_diff($this->categories, [$id]));
+        } else {
+            $this->categories[] = $id;
+        }
     }
 
     public function toggleBrand($id)
     {
-        $this->brands = collect($this->brands)->contains($id) ? collect($this->brands)->reject(fn($v) => $v == $id)->values()->all() : collect($this->brands)->push($id)->all();
+        $id = (string) $id;
+        if (in_array($id, $this->brands)) {
+            $this->brands = array_values(array_diff($this->brands, [$id]));
+        } else {
+            $this->brands[] = $id;
+        }
+    }
 
-        $this->resetPage();
+    public function updated($property)
+    {
+        if (str($property)->startsWith(['search', 'brands', 'categories'])) {
+            $this->resetPage();
+        }
     }
 
     #[Computed]
     public function products()
     {
-        return Product::filter($this->search, $this->categories, $this->brands)->paginate(6);
+        return Product::with(['brand', 'category'])
+            ->filter($this->search, $this->categories, $this->brands)
+            ->paginate(6);
     }
 
-    public function render()
+    #[Computed(persist: true)]
+    public function allBrands()
     {
-        $brands = Brand::all();
-        $categories = Category::all();
+        return Brand::orderBy('name')->get();
+    }
 
-        return $this->view([
-            'allCategories' => $categories,
-            'allBrands' => $brands,
-        ]);
+    #[Computed(persist: true)]
+    public function allCategories()
+    {
+        return Category::orderBy('name')->get();
     }
 };
 ?>
@@ -92,7 +108,13 @@ new class extends Component {
                                 </span>
                                 <input id="search" name="search" type="text"
                                     wire:model.live.debounce.250ms="search" class="form-control form-control-lg"
-                                    placeholder="Buscar por nome ou descrição...">
+                                    placeholder="Buscar por nome...">
+                                @if ($search)
+                                    <button class="btn btn-outline-secondary" wire:click="$set('search', '')"
+                                        type="button">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                @endif
                             </div>
                         </div>
                     </div>
@@ -106,7 +128,7 @@ new class extends Component {
                             <div class="mb-3 d-flex justify-content-between">
                                 <h5><i class="bi bi-funnel me-1"></i>Filtros</h5>
 
-                                @if (($this->categories && count($this->categories) > 0) || ($this->brands && count($this->brands) > 0))
+                                @if (count($this->categories) > 0 || count($this->brands) > 0)
                                     <button wire:click="clearAllFilters" type="button"
                                         class="btn p-0 btn-link link-secondary"
                                         style="--bs-btn-padding-y: .25rem; --bs-btn-padding-x: .5rem; --bs-btn-font-size: .75rem;">
@@ -121,7 +143,7 @@ new class extends Component {
                                         <div>
                                             <span class="form-label fw-semibold">Categorias</span>
                                         </div>
-                                        @if ($this->categories && count($this->categories) > 1)
+                                        @if (count($this->categories) > 1)
                                             <span
                                                 class="badge rounded-pill bg-dark-subtle text-black">{{ count($this->categories) }}</span>
                                         @endif
@@ -129,11 +151,11 @@ new class extends Component {
                                 </div>
 
                                 <div class="card-body p-0 overflow-y-auto ps-1" style="max-height: 155px;">
-                                    @foreach ($allCategories as $category)
+                                    @foreach ($this->allCategories as $category)
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" value="{{ $category->id }}"
                                                 id="category-{{ $category->id }}" wire:model.live="categories"
-                                                wire:key="category-{{ $category->id }}">
+                                                wire:key="category-{{ $category->id }}" wire:loading.attr="disabled">
                                             <label class="form-check-label" for="category-{{ $category->id }}">
                                                 {{ $category->name }}
                                             </label>
@@ -141,7 +163,7 @@ new class extends Component {
                                     @endforeach
                                 </div>
 
-                                @if ($this->categories && count($this->categories) > 0)
+                                @if (count($this->categories) > 0)
                                     <div class="card-footer bg-white pt-0">
                                         <div class="mt-2">
                                             <p class="small text-muted mb-0">
@@ -164,7 +186,7 @@ new class extends Component {
                                         <div>
                                             <span class="form-label fw-semibold">Marcas</span>
                                         </div>
-                                        @if ($this->brands && count($this->brands) > 1)
+                                        @if (count($this->brands) > 1)
                                             <span
                                                 class="badge rounded-pill bg-dark-subtle text-black">{{ count($this->brands) }}</span>
                                         @endif
@@ -172,11 +194,11 @@ new class extends Component {
                                 </div>
 
                                 <div class="card-body p-0 overflow-y-auto ps-1" style="max-height: 155px;">
-                                    @foreach ($allBrands as $brand)
+                                    @foreach ($this->allBrands as $brand)
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" value="{{ $brand->id }}"
                                                 id="brand-{{ $brand->id }}" wire:model.live="brands"
-                                                wire:key="brand-{{ $brand->id }}">
+                                                wire:key="brand-{{ $brand->id }}" wire:loading.attr="disabled">
                                             <label class="form-check-label" for="brand-{{ $brand->id }}">
                                                 {{ $brand->name }}
                                             </label>
@@ -184,7 +206,7 @@ new class extends Component {
                                     @endforeach
                                 </div>
 
-                                @if ($this->brands && count($this->brands) > 0)
+                                @if (count($this->brands) > 0)
                                     <div class="card-footer bg-white pt-0">
                                         <div class="mt-2">
                                             <p class="small text-muted mb-0">

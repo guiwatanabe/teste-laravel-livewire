@@ -41,15 +41,17 @@ class Product extends Model
      */
     public function scopeSearch(Builder $query, ?string $search = null): Builder
     {
-        if ($search) {
+        $search = trim((string) $search);
+
+        if ($search !== '') {
             $query->where(function (Builder $q) use ($search) {
-                $q->where('name', 'like', '%'.$search.'%')
-                    ->orWhere('description', 'like', '%'.$search.'%');
+                $q->where('name', 'like', "%{$search}%");
             });
         }
 
         return $query;
     }
+
 
     /**
      * Scope to filter products by category IDs.
