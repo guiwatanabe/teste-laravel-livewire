@@ -84,6 +84,6 @@ class Product extends Model
     {
         return $query->search($search)
             ->byCategories($categoryIds)
-            ->byBrands($brandIds);
+            ->byBrands( $brandIds );
     }
 }
