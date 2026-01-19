@@ -52,7 +52,6 @@ class Product extends Model
         return $query;
     }
 
-
     /**
      * Scope to filter products by category IDs.
      */
@@ -84,6 +83,6 @@ class Product extends Model
     {
         return $query->search($search)
             ->byCategories($categoryIds)
-            ->byBrands( $brandIds );
+            ->byBrands($brandIds);
     }
 }
